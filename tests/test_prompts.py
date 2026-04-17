@@ -39,9 +39,9 @@ class TestPromptTemplates:
         assert "previous_questions" in variables
 
     def test_evaluator_prompt_has_required_variables(self):
-        """Evaluator prompt should accept context, question, and user_answer."""
+        """Evaluator prompt should accept summary, question, and user_answer."""
         variables = EVALUATOR_PROMPT.input_variables
-        assert "context" in variables
+        assert "summary" in variables
         assert "question" in variables
         assert "user_answer" in variables
 

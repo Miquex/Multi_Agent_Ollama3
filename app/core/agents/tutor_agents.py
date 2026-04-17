@@ -14,6 +14,9 @@ from app.core.prompts import (
     EXAMINER_PROMPT,
     EXAMINER_FALLBACK_PROMPT,
     EVALUATOR_PROMPT,
+    SUMMARY_FORMAT,
+    QUESTION_FORMAT,
+    EVALUATION_FORMAT,
 )
 from app.core.rag.vector_store_data import get_vector_store_manager
 from app.utils.logger import logger
@@ -71,7 +74,7 @@ def summarizer_node(state: TutorState) -> dict[str, str]:
             {
                 "context": state.context,
                 "topic": state.topic,
-                "format_instructions": parser.get_format_instructions(),
+                "format_instructions": SUMMARY_FORMAT,
             }
         )
         logger.success(f"Summarizer generated summary ({len(result.summary)} chars)")
@@ -135,7 +138,7 @@ def examiner_node(state: TutorState) -> dict[str, object]:
                 "summary": state.summary,
                 "topic": state.topic,
                 "previous_questions": previous_questions,
-                "format_instructions": parser.get_format_instructions(),
+                "format_instructions": QUESTION_FORMAT,
             }
         )
         logger.success(
@@ -194,10 +197,10 @@ def evaluator_node(state: TutorState) -> dict[str, object]:
     try:
         result: EvaluationResult = chain.invoke(
             {
-                "context": state.context,
+                "summary": state.summary,
                 "question": state.question,
                 "user_answer": clean_answer,
-                "format_instructions": parser.get_format_instructions(),
+                "format_instructions": EVALUATION_FORMAT,
             }
         )
         grade = result.grade

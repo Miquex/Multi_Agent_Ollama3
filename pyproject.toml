@@ -13,6 +13,7 @@ dependencies = [
     "loguru>=0.7.3",
     "pydantic>=2.13.1",
     "python-dotenv>=1.0.0",
+    "python-telegram-bot>=21.0",
     "pytube>=15.0.0",
     "sentence-transformers>=5.4.1",
     "streamlit>=1.56.0",

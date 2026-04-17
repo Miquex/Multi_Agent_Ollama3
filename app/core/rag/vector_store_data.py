@@ -7,6 +7,8 @@ model on every request.
 
 import os
 import pathlib
+
+from dotenv import load_dotenv
 from typing import Optional
 
 from langchain_community.vectorstores import Chroma
@@ -19,6 +21,8 @@ from langchain_community.document_loaders import (
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 from app.utils.logger import logger
+
+load_dotenv()
 
 # Module-level singleton instance (lazy-initialized)
 _instance: Optional["VectorStoreManager"] = None
@@ -56,11 +60,11 @@ class VectorStoreManager:
         )
         self.data_folder = data_folder
         self.embedding_model = HuggingFaceEmbeddings(
-            model_name="all-MiniLM-L6-v2",
+            model_name=os.getenv("EMBEDDING_MODEL", "all-MiniLM-L6-v2"),
         )
         self.text_splitter = RecursiveCharacterTextSplitter(
-            chunk_size=1000,
-            chunk_overlap=200,
+            chunk_size=int(os.getenv("CHUNK_SIZE", "1000")),
+            chunk_overlap=int(os.getenv("CHUNK_OVERLAP", "200")),
             length_function=len,
         )
         self.vector_store: Optional[Chroma] = None
@@ -87,7 +91,8 @@ class VectorStoreManager:
                 embedding_function=self.embedding_model,
             )
 
-        return self.vector_store.as_retriever(search_kwargs={"k": 3})
+        retriever_k = int(os.getenv("RETRIEVER_K", "3"))
+        return self.vector_store.as_retriever(search_kwargs={"k": retriever_k})
 
     def create_and_load_db(self) -> Optional[Chroma]:
         """Loads documents from the knowledge folder, splits them, and builds the vector store.

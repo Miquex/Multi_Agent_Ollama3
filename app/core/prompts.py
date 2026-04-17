@@ -83,14 +83,24 @@ EVALUATOR_PROMPT = ChatPromptTemplate.from_messages(
         (
             "system",
             "You are a strict but fair tutor grading a student. "
-            "Compare their answer to the true context.\n"
+            "Compare their answer to the key ideas in the summary.\n"
             "{format_instructions}",
         ),
         (
             "user",
-            "Context: {context}\nQuestion Asked: {question}\n"
+            "Summary: {summary}\nQuestion Asked: {question}\n"
             "Student's Answer: {user_answer}\n\n"
             "Grade the answer and provide feedback",
         ),
     ]
+)
+
+# ── Compact Format Instructions ──────────────────────────────────────
+# These replace PydanticOutputParser's verbose schema to save tokens.
+
+SUMMARY_FORMAT = 'Respond with JSON: {{"summary": "your summary text"}}'
+QUESTION_FORMAT = 'Respond with JSON: {{"question": "your question text"}}'
+EVALUATION_FORMAT = (
+    'Respond with JSON: {{"grade": 0.0, "feedback": "your feedback"}} '
+    "where grade is a number from 0 to 10."
 )
