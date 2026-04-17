@@ -116,7 +116,9 @@ class VectorStoreManager:
         logger.info(f"Loading data from {self.data_folder}...")
 
         pdf_loader = DirectoryLoader(
-            self.data_folder, glob="**/*.pdf", loader_cls=PyPDFLoader
+            self.data_folder,
+            glob="**/*.pdf",
+            loader_cls=PyPDFLoader,  # type: ignore[arg-type]
         )
         md_loader = DirectoryLoader(
             self.data_folder, glob="**/*.md", loader_cls=TextLoader

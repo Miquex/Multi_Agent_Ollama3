@@ -89,7 +89,7 @@ def summarizer_node(state: TutorState) -> dict[str, str]:
             }
         )
         logger.info("Summarizer used fallback plain-text mode")
-        return {"summary": raw.content.strip()}
+        return {"summary": str(raw.content).strip()}
 
 
 def examiner_node(state: TutorState) -> dict[str, object]:
@@ -159,7 +159,7 @@ def examiner_node(state: TutorState) -> dict[str, object]:
                 "previous_questions": previous_questions,
             }
         )
-        question_text = raw.content.strip()
+        question_text = str(raw.content).strip()
         logger.info(f"Examiner fallback question {new_question_num}: {question_text}")
         return {
             "question": question_text,

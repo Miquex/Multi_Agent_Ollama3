@@ -8,7 +8,7 @@ import os
 import pathlib
 import uuid
 
-from pytube import Playlist
+from pytube import Playlist  # type: ignore[import-untyped]
 from langchain_community.document_loaders import YoutubeLoader
 
 from app.utils.logger import logger

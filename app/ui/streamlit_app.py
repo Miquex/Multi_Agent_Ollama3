@@ -13,6 +13,7 @@ import pathlib
 
 import streamlit as st
 
+from langchain_core.runnables import RunnableConfig
 from app.core.graph import tutor_graph
 from app.utils.youtube_fetcher import (
     download_youtube_to_knowledge,
@@ -51,7 +52,7 @@ with left_col:
             del st.session_state.graph_state
 
         clean_topic = sanitize_topic(topic)
-        config = {"configurable": {"thread_id": st.session_state.thread_id}}
+        config: RunnableConfig = {"configurable": {"thread_id": str(st.session_state.thread_id)}}
         with st.spinner(
             "Agents are researching, summarizing, and generating a question..."
         ):
@@ -69,7 +70,7 @@ with left_col:
             st.rerun()
 
     # Build config from current thread_id
-    config = {"configurable": {"thread_id": st.session_state.thread_id}}
+    config = {"configurable": {"thread_id": str(st.session_state.thread_id)}}
 
     # Display results based on session state
     if "graph_state" in st.session_state:

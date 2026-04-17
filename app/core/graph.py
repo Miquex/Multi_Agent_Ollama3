@@ -5,6 +5,7 @@ with conditional edges for the question loop and examiner guard.
 """
 
 from langgraph.graph import StateGraph, START, END
+from langgraph.graph.state import CompiledStateGraph
 from langgraph.checkpoint.memory import MemorySaver
 
 from app.utils.pydantic_config import TutorState
@@ -58,7 +59,7 @@ def should_continue(state: TutorState) -> str:
     return "next_question"
 
 
-def build_tutor_graph() -> StateGraph:
+def build_tutor_graph() -> CompiledStateGraph:
     """Constructs and compiles the tutor LangGraph state machine.
 
     Graph topology::

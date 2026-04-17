@@ -9,6 +9,7 @@ import functools
 
 from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
+from pydantic import SecretStr
 
 from app.utils.logger import logger
 
@@ -46,4 +47,4 @@ def get_llm() -> ChatOpenAI:
         raise ValueError("MODEL_NAME is missing!")
 
     logger.info(f"Initializing LLM: model={model_name}, base_url={base_url}")
-    return ChatOpenAI(model=model_name, base_url=base_url, api_key=api_key)
+    return ChatOpenAI(model=model_name, base_url=base_url, api_key=SecretStr(api_key))

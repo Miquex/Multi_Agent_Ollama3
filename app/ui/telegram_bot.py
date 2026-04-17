@@ -26,6 +26,7 @@ from telegram.ext import (
     filters,
 )
 
+from langchain_core.runnables import RunnableConfig
 from app.core.graph import tutor_graph
 from app.utils.logger import logger
 from app.utils.sanitizer import sanitize_topic, sanitize_user_input
@@ -75,6 +76,7 @@ def _split_message(text: str) -> list[str]:
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Handles /start command — begins a new learning session."""
+    assert update.message and update.effective_user
     logger.info(f"Telegram /start from user {update.effective_user.id}")
     await update.message.reply_text(
         "🎓 *Welcome to the Multi-Agent Tutor!*\n\n"
@@ -88,6 +90,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 async def receive_topic(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Receives the learning topic and asks for question count."""
+    assert update.message and update.message.text and update.effective_user and context.user_data is not None
     topic = sanitize_topic(update.message.text)
     context.user_data["topic"] = topic
     logger.info(f"Telegram user {update.effective_user.id} chose topic: {topic}")
@@ -104,6 +107,7 @@ async def receive_question_count(
     update: Update, context: ContextTypes.DEFAULT_TYPE
 ) -> int:
     """Receives question count, invokes the graph, and sends the first question."""
+    assert update.message and update.message.text and update.effective_user and context.user_data is not None
     text = update.message.text.strip()
 
     # Validate number
@@ -117,7 +121,7 @@ async def receive_question_count(
 
     # Create a fresh thread for this session
     thread_id = f"tg-{update.effective_user.id}-{uuid.uuid4().hex[:8]}"
-    config = {"configurable": {"thread_id": thread_id}}
+    config: RunnableConfig = {"configurable": {"thread_id": thread_id}}
     context.user_data["config"] = config
     context.user_data["num_questions"] = num_questions
 
@@ -168,8 +172,12 @@ async def receive_question_count(
 
 async def receive_answer(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Receives the student's answer, resumes the graph, and sends feedback."""
+    assert update.message and update.message.text and context.user_data is not None
     user_answer = sanitize_user_input(update.message.text)
-    config = context.user_data["config"]
+    
+    # We must explicitly cast to RunnableConfig since user_data holds Any
+    import typing
+    config = typing.cast(RunnableConfig, context.user_data["config"])
 
     await update.message.reply_text("🧠 Evaluating your answer...")
 
@@ -239,6 +247,7 @@ async def receive_answer(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
 async def youtube_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Handles /youtube command — starts YouTube download flow."""
+    assert update.message
     await update.message.reply_text(
         "🎬 *YouTube Transcript Downloader*\n\n"
         "Send me a YouTube video URL and I'll extract the transcript "
@@ -253,6 +262,7 @@ async def receive_youtube_url(
     update: Update, context: ContextTypes.DEFAULT_TYPE
 ) -> int:
     """Receives the YouTube URL and asks for an optional title."""
+    assert update.message and update.message.text and context.user_data is not None
     url = update.message.text.strip()
     if "youtube.com" not in url and "youtu.be" not in url:
         await update.message.reply_text(
@@ -272,6 +282,7 @@ async def receive_youtube_title(
     update: Update, context: ContextTypes.DEFAULT_TYPE
 ) -> int:
     """Receives the title and downloads the transcript."""
+    assert update.message and update.message.text and context.user_data is not None
     title = update.message.text.strip()
     if title == ".":
         title = ""
@@ -307,6 +318,7 @@ async def receive_youtube_title(
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Handles /cancel — cancels any active conversation."""
+    assert update.message and context.user_data is not None
     await update.message.reply_text(
         "❌ Operation cancelled. Send /start to begin again."
     )
