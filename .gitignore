@@ -1,0 +1,27 @@
+# Environments & Secrets
+.env
+.venv/
+env/
+venv/
+ENV/
+
+# RAG Data and Databases
+app/data/chroma_db/
+app/data/knowledge/
+*.sqlite3
+
+# Python Cache & Bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+.mypy_cache/
+.pytest_cache/
+
+# Logs
+logs.log
+logs/
+*.log
+
+# OS Junk
+.DS_Store
+Thumbs.db
