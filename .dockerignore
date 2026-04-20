@@ -1,0 +1,33 @@
+# ── Virtual environments ─────────────────────────────────────────────
+.venv/
+venv/
+env/
+
+# ── Git ──────────────────────────────────────────────────────────────
+.git/
+.gitignore
+
+# ── Python caches ────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+
+# ── Data (mounted as volumes, not baked into the image) ──────────────
+app/data/chroma_db/
+app/data/knowledge/
+app/data/logs/
+
+# ── Secrets (NEVER bake into image) ──────────────────────────────────
+.env
+
+# ── Dev / IDE ────────────────────────────────────────────────────────
+.agents/
+tests/
+*.md
+*.log
+logs/
+.DS_Store
+Thumbs.db

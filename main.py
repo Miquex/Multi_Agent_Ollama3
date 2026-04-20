@@ -42,6 +42,13 @@ def main() -> None:
     (which uses asyncio polling) can run in the main thread.
     If no TELEGRAM_BOT_TOKEN is set, only Streamlit launches.
     """
+    # Pre-flight health check
+    from app.core.llm_factory import check_ollama_health
+
+    if not check_ollama_health():
+        logger.critical("Health check failed. Aborting startup.")
+        sys.exit(1)
+
     # Run Streamlit in a background thread
     streamlit_thread = threading.Thread(target=_run_streamlit, daemon=True)
     streamlit_thread.start()

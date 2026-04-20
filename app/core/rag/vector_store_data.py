@@ -1,6 +1,6 @@
 """ChromaDB vector store manager for the RAG pipeline.
 
-Handles document loading, text splitting, embedding, and retrieval.
+Handles document loading, text splitting, embedding, reranking, and retrieval.
 Uses a module-level singleton to avoid re-initializing the embedding
 model on every request.
 """
@@ -11,6 +11,7 @@ import pathlib
 from dotenv import load_dotenv
 from typing import Optional
 
+from langchain_community.cross_encoders import HuggingFaceCrossEncoder
 from langchain_community.vectorstores import Chroma
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_community.document_loaders import (
@@ -18,6 +19,9 @@ from langchain_community.document_loaders import (
     TextLoader,
     PyPDFLoader,
 )
+from langchain_core.callbacks import CallbackManagerForRetrieverRun
+from langchain_core.documents import Document
+from langchain_core.retrievers import BaseRetriever
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 from app.utils.logger import logger
@@ -43,6 +47,63 @@ def get_vector_store_manager() -> "VectorStoreManager":
     return _instance
 
 
+class RerankedRetriever(BaseRetriever):
+    """Two-stage retriever: embedding similarity then cross-encoder reranking.
+
+    Stage 1 fetches a broad candidate pool via cosine similarity.
+    Stage 2 scores each candidate with a cross-encoder model that
+    computes full attention between the query and chunk text, keeping
+    only the ``top_n`` highest-scoring results.
+
+    Attributes:
+        base_retriever: The underlying embedding-based retriever.
+        cross_encoder: The HuggingFace cross-encoder model for scoring.
+        top_n: Number of documents to keep after reranking.
+    """
+
+    base_retriever: BaseRetriever
+    cross_encoder: HuggingFaceCrossEncoder
+    top_n: int = 3
+
+    def _get_relevant_documents(
+        self,
+        query: str,
+        *,
+        run_manager: CallbackManagerForRetrieverRun,
+    ) -> list[Document]:
+        """Retrieves and reranks documents for the given query.
+
+        Args:
+            query: The user's search query.
+            run_manager: Callback manager provided by LangChain.
+
+        Returns:
+            The top-N most relevant documents after cross-encoder scoring.
+        """
+        # Stage 1: broad embedding retrieval
+        candidates = self.base_retriever.invoke(query)
+        if not candidates:
+            return []
+
+        # Stage 2: cross-encoder reranking
+        pairs = [(query, doc.page_content) for doc in candidates]
+        scores: list[float] = self.cross_encoder.score(pairs)
+
+        scored = sorted(
+            zip(scores, candidates),
+            key=lambda x: x[0],
+            reverse=True,
+        )
+        reranked = [doc for _, doc in scored[: self.top_n]]
+
+        logger.debug(
+            f"Reranker: {len(candidates)} candidates → "
+            f"top {len(reranked)} (scores: "
+            f"{[f'{s:.3f}' for s, _ in scored[:self.top_n]]})"
+        )
+        return reranked
+
+
 class VectorStoreManager:
     """Manages the ChromaDB vector store lifecycle: creation, loading, and retrieval.
 
@@ -50,6 +111,8 @@ class VectorStoreManager:
         persist_directory: File path where the ChromaDB database is stored.
         data_folder: Path to the knowledge documents folder.
         embedding_model: The HuggingFace embedding model used for vectorization.
+        cross_encoder: Cross-encoder model for second-stage relevance scoring.
+        reranker_top_n: Number of chunks to keep after reranking.
         text_splitter: Splits documents into chunks for better retrieval quality.
         vector_store: The active ChromaDB vector store instance, if loaded.
     """
@@ -62,6 +125,17 @@ class VectorStoreManager:
         self.embedding_model = HuggingFaceEmbeddings(
             model_name=os.getenv("EMBEDDING_MODEL", "all-MiniLM-L6-v2"),
         )
+
+        # Cross-encoder for two-stage retrieval
+        reranker_model_name = os.getenv(
+            "RERANKER_MODEL", "cross-encoder/ms-marco-MiniLM-L-6-v2"
+        )
+        logger.info(f"Loading cross-encoder reranker: {reranker_model_name}")
+        self.cross_encoder = HuggingFaceCrossEncoder(
+            model_name=reranker_model_name,
+        )
+        self.reranker_top_n = int(os.getenv("RERANKER_TOP_N", "3"))
+
         self.text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=int(os.getenv("CHUNK_SIZE", "1000")),
             chunk_overlap=int(os.getenv("CHUNK_OVERLAP", "200")),
@@ -69,14 +143,19 @@ class VectorStoreManager:
         )
         self.vector_store: Optional[Chroma] = None
 
-    def get_retriever(self):
-        """Returns a retriever backed by the vector store, auto-building if needed.
+    def get_retriever(self) -> RerankedRetriever:
+        """Returns a two-stage retriever: broad embedding search then cross-encoder rerank.
+
+        Stage 1 retrieves a broad candidate pool (``RETRIEVER_K`` chunks)
+        via cosine similarity. Stage 2 passes those candidates through
+        a cross-encoder model that computes full attention between the
+        query and each chunk, keeping only the ``RERANKER_TOP_N`` best.
 
         If the ChromaDB folder is empty or missing, triggers an automatic
         build from the knowledge documents folder.
 
         Returns:
-            A LangChain retriever configured to return the top 3 results.
+            A ``RerankedRetriever`` that yields the top reranked results.
         """
         if not os.path.exists(self.persist_directory) or not os.listdir(
             self.persist_directory
@@ -91,8 +170,20 @@ class VectorStoreManager:
                 embedding_function=self.embedding_model,
             )
 
-        retriever_k = int(os.getenv("RETRIEVER_K", "3"))
-        return self.vector_store.as_retriever(search_kwargs={"k": retriever_k})
+        retriever_k = int(os.getenv("RETRIEVER_K", "10"))
+        base_retriever = self.vector_store.as_retriever(
+            search_kwargs={"k": retriever_k}
+        )
+
+        logger.info(
+            f"Retriever pipeline: fetch top-{retriever_k} → "
+            f"rerank to top-{self.reranker_top_n}"
+        )
+        return RerankedRetriever(
+            base_retriever=base_retriever,
+            cross_encoder=self.cross_encoder,
+            top_n=self.reranker_top_n,
+        )
 
     def create_and_load_db(self) -> Optional[Chroma]:
         """Loads documents from the knowledge folder, splits them, and builds the vector store.

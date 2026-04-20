@@ -1,0 +1,15 @@
+services:
+  tutor:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: multi-agent-tutor
+    ports:
+      - "8501:8501"                        # Streamlit UI
+    env_file:
+      - .env                               # LLM provider configured here
+    volumes:
+      - ./app/data/knowledge:/app/app/data/knowledge    # hot-swap documents
+      - ./app/data/chroma_db:/app/app/data/chroma_db    # persist vector DB
+      - ./app/data/logs:/app/app/data/logs              # persist logs
+    restart: unless-stopped

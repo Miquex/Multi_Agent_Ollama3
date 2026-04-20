@@ -15,27 +15,12 @@ SUMMARIZER_PROMPT = ChatPromptTemplate.from_messages(
             "You are an expert tutor. Based ONLY on the provided context, "
             "create a clear and structured summary covering the key ideas, "
             "most important concepts, and essential takeaways about the topic. "
-            "Use bullet points or numbered lists when appropriate.\n"
-            "{format_instructions}",
+            "Use bullet points or numbered lists when appropriate. "
+            "Reply with ONLY the summary text, no JSON.",
         ),
         (
             "user",
             "Context: {context}\nTopic: {topic}\n\nProvide a comprehensive summary:",
-        ),
-    ]
-)
-
-SUMMARIZER_FALLBACK_PROMPT = ChatPromptTemplate.from_messages(
-    [
-        (
-            "system",
-            "You are an expert tutor. Based ONLY on the provided context, "
-            "create a clear summary covering key ideas and important "
-            "concepts. Use bullet points.",
-        ),
-        (
-            "user",
-            "Context: {context}\nTopic: {topic}\n\nProvide a summary:",
         ),
     ]
 )
@@ -98,7 +83,6 @@ EVALUATOR_PROMPT = ChatPromptTemplate.from_messages(
 # ── Compact Format Instructions ──────────────────────────────────────
 # These replace PydanticOutputParser's verbose schema to save tokens.
 
-SUMMARY_FORMAT = 'Respond with JSON: {{"summary": "your summary text"}}'
 QUESTION_FORMAT = 'Respond with JSON: {{"question": "your question text"}}'
 EVALUATION_FORMAT = (
     'Respond with JSON: {{"grade": 0.0, "feedback": "your feedback"}} '

@@ -5,16 +5,14 @@ Each function in this module is a LangGraph node that receives the shared
 generation, or answer evaluation), and returns a partial state update dict.
 """
 
-from langchain_core.output_parsers import PydanticOutputParser
+from langchain_core.output_parsers import PydanticOutputParser, StrOutputParser
 
 from app.core.llm_factory import get_llm
 from app.core.prompts import (
     SUMMARIZER_PROMPT,
-    SUMMARIZER_FALLBACK_PROMPT,
     EXAMINER_PROMPT,
     EXAMINER_FALLBACK_PROMPT,
     EVALUATOR_PROMPT,
-    SUMMARY_FORMAT,
     QUESTION_FORMAT,
     EVALUATION_FORMAT,
 )
@@ -23,7 +21,6 @@ from app.utils.logger import logger
 from app.utils.sanitizer import sanitize_user_input
 from app.utils.pydantic_config import (
     TutorState,
-    SummaryResult,
     QuestionResult,
     EvaluationResult,
     QuestionHistoryEntry,
@@ -55,9 +52,9 @@ def researcher_node(state: TutorState) -> dict[str, object]:
 def summarizer_node(state: TutorState) -> dict[str, str]:
     """Generates a structured summary of the retrieved context.
 
-    Uses the LLM with a ``PydanticOutputParser`` to produce a
-    ``SummaryResult``. Falls back to plain-text generation if
-    structured parsing fails.
+    Uses the LLM with a ``StrOutputParser`` to produce plain-text
+    markdown directly, avoiding JSON parsing failures that cause
+    costly fallback re-invocations.
 
     Args:
         state: The current tutor state containing context and topic.
@@ -67,29 +64,15 @@ def summarizer_node(state: TutorState) -> dict[str, str]:
     """
     logger.info(f"Agent (Summarizer) generating summary for: {state.topic}")
     llm = get_llm()
-    parser = PydanticOutputParser(pydantic_object=SummaryResult)
-    chain = SUMMARIZER_PROMPT | llm | parser
-    try:
-        result: SummaryResult = chain.invoke(
-            {
-                "context": state.context,
-                "topic": state.topic,
-                "format_instructions": SUMMARY_FORMAT,
-            }
-        )
-        logger.success(f"Summarizer generated summary ({len(result.summary)} chars)")
-        return {"summary": result.summary}
-    except Exception as e:
-        logger.error(f"Summarizer failed structured output: {e}")
-        fallback_chain = SUMMARIZER_FALLBACK_PROMPT | llm
-        raw = fallback_chain.invoke(
-            {
-                "context": state.context,
-                "topic": state.topic,
-            }
-        )
-        logger.info("Summarizer used fallback plain-text mode")
-        return {"summary": str(raw.content).strip()}
+    chain = SUMMARIZER_PROMPT | llm | StrOutputParser()
+    summary: str = chain.invoke(
+        {
+            "context": state.context,
+            "topic": state.topic,
+        }
+    )
+    logger.success(f"Summarizer generated summary ({len(summary)} chars)")
+    return {"summary": summary.strip()}
 
 
 def examiner_node(state: TutorState) -> dict[str, object]:
