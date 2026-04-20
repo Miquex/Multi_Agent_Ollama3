@@ -41,7 +41,7 @@ You can run the `uv sync` command in the project folder to automatically install
 
 >[!IMPORTANT]
 > Ensure that uv is installed on your computer before proceeding.
-> you can install it by running this command in your terminal: `powershell -c irmo https://astral.sh/uv/install.ps1 | iex`
+> you can install it by running this command in your terminal: `powershell -c "irm https://astral.sh/uv/install.ps1 | iex"`
 
 ## 🎥 Functionality Demos
 
@@ -56,6 +56,22 @@ The primary web dashboard where students can set their topic, configure the numb
 The exact same LangGraph backend exposed via a conversational Telegram Bot, allowing students to learn on the go, receive graded feedback, and even capture YouTube videos straight from a chat interface.
 
 <video src="assets/telegram_demo.mp4" width="100%" controls></video>
+
+## 📚 How to Add Knowledge
+
+The Tutor Agent is only as smart as the learning material you provide it. You can effortlessly feed it context via documents or videos.
+
+### 1. Uploading Documents (PDF, MD, TXT)
+To teach the AI using local files, simply drop your documents directly into the **`app/data/knowledge/`** directory. 
+- The project is configured with automatic loaders that detect `.pdf`, `.md`, and `.txt` files in that folder.
+- When the app builds the database, it will parse, vectorize, and commit these new documents to its local ChromaDB instance automatically.
+- **Docker note:** If you're using Docker, this folder is mounted as a volume. Anything you drop into `app/data/knowledge/` on your computer will immediately sync to the container without needing a restart!
+
+### 2. The YouTube Extractor
+Don't want to read? You can have the Tutor Agent "watch" an educational YouTube video for you.
+- **Via Streamlit:** Look at the left sidebar. Paste an individual video URL or an entire YouTube Playlist URL. The system will download the transcripts and index them as text files.
+- **Via Telegram:** Send the `/youtube` command to the bot, paste your URL, and the bot will download the transcript directly into the knowledge base.
+- **How it works:** The system uses `youtube-transcript-api` to pull the precise text dialogue from the video (skipping heavy video visual data) and pushes the clean text directly to the vector database.
 
 ## About Tools Used
 
